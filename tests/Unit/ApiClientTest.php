@@ -78,6 +78,20 @@ class ApiClientTest extends TestCase {
 		$this->assertSame( 'render_failed', $result->get_error_code() );
 	}
 
+	public function test_render_html_handles_non_json_error_body_gracefully(): void {
+		Functions\when( 'wp_remote_retrieve_response_message' )->alias( fn( $r ) => $r['message'] ?? '' );
+		Functions\expect( 'wp_remote_post' )
+			->once()
+			->andReturn( [ 'code' => 503, 'body' => 'Service Unavailable', 'message' => 'Service Unavailable' ] );
+
+		$client = new DocRenders_API_Client( 'dcr_live_test' );
+		$result = $client->render_html( '<h1>Test</h1>' );
+
+		$this->assertInstanceOf( WP_Error::class, $result );
+		$this->assertSame( 'docrenders_error', $result->get_error_code() );
+		$this->assertSame( 503, $result->get_error_data()['status'] );
+	}
+
 	public function test_render_html_sends_html_as_json_field(): void {
 		$html = '<p>Hello world</p>';
 		Functions\expect( 'wp_remote_post' )

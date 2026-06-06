@@ -37,9 +37,15 @@ class DocRenders_Woo_Invoices {
 			return $attachments;
 		}
 
-		$tmp = wp_tempnam( 'docrenders-invoice' ) . '.pdf';
+		$tmp = wp_tempnam( 'docrenders-invoice' );
+		if ( ! $tmp ) {
+			return $attachments;
+		}
+		$tmp .= '.pdf';
 		// phpcs:ignore WordPress.WP.AlternativeFunctions.file_system_read_file_put_contents
-		file_put_contents( $tmp, $pdf );
+		if ( false === file_put_contents( $tmp, $pdf ) ) {
+			return $attachments;
+		}
 		$attachments[] = $tmp;
 
 		return $attachments;
@@ -82,7 +88,7 @@ class DocRenders_Woo_Invoices {
 	// PDF generation with retry
 	// -------------------------------------------------------------------------
 
-	public function generate_pdf( WC_Order $order ) {
+	public function generate_pdf( WC_Order $order ): string|WP_Error {
 		$data                   = $this->build_template_data( $order );
 		$data['invoice_number'] = $this->next_invoice_number();
 

@@ -80,8 +80,9 @@ class DocRenders_API_Client {
 		$data        = json_decode( $body_string, true );
 
 		if ( 200 !== $status ) {
-			$code    = $data['error']['code'] ?? 'docrenders_error';
-			$message = $data['error']['message'] ?? wp_remote_retrieve_response_message( $response );
+			$error   = is_array( $data ) ? ( $data['error'] ?? [] ) : [];
+			$code    = $error['code'] ?? 'docrenders_error';
+			$message = $error['message'] ?? wp_remote_retrieve_response_message( $response );
 			return new WP_Error( $code, $message, [ 'status' => $status ] );
 		}
 
@@ -132,8 +133,9 @@ class DocRenders_API_Client {
 		}
 
 		$data    = json_decode( $body_string, true );
-		$code    = $data['error']['code'] ?? 'docrenders_error';
-		$message = $data['error']['message'] ?? wp_remote_retrieve_response_message( $response );
+		$error   = is_array( $data ) ? ( $data['error'] ?? [] ) : [];
+		$code    = $error['code'] ?? 'docrenders_error';
+		$message = $error['message'] ?? wp_remote_retrieve_response_message( $response );
 
 		return new WP_Error( $code, $message, [ 'status' => $status ] );
 	}

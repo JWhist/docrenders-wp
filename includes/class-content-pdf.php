@@ -112,6 +112,8 @@ class DocRenders_Content_PDF {
 		$result = $this->client->render_html( $html );
 
 		if ( is_wp_error( $result ) ) {
+			// phpcs:ignore WordPress.PHP.DevelopmentFunctions.error_log_error_log
+			error_log( sprintf( '[DocRenders] PDF generation failed for post %d: %s', $post_id, $result->get_error_message() ) );
 			$status  = $result->get_error_data()['status'] ?? 500;
 			$message = $this->user_facing_message( $result->get_error_code(), $result->get_error_message() );
 			wp_send_json_error( [ 'message' => $message ], $status );
@@ -213,7 +215,14 @@ class DocRenders_Content_PDF {
 				// Strip query strings from the path.
 				$path = strtok( $path, '?' );
 
-				if ( ! file_exists( $path ) || ! is_readable( $path ) ) {
+				// Resolve symlinks/traversal and ensure the file is within the WordPress install.
+				$real = realpath( $path );
+				if ( ! $real || ! str_starts_with( $real, realpath( ABSPATH ) ) ) {
+					return $matches[0];
+				}
+				$path = $real;
+
+				if ( ! is_readable( $path ) ) {
 					return $matches[0];
 				}
 
