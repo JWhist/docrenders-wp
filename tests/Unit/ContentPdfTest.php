@@ -202,6 +202,8 @@ class ContentPdfTest extends TestCase {
 		Functions\when( 'get_permalink' )->justReturn( 'https://example.com/my-post/' );
 		Functions\when( 'get_the_post_thumbnail_url' )->justReturn( false );
 		Functions\when( 'get_option' )->justReturn( '' );
+		Functions\when( 'get_theme_mod' )->justReturn( false );
+		Functions\when( 'wp_get_attachment_image_url' )->justReturn( false );
 
 		$data = $this->call_build_post_data( $post );
 
@@ -220,6 +222,8 @@ class ContentPdfTest extends TestCase {
 		Functions\when( 'get_permalink' )->justReturn( 'https://example.com/t/' );
 		Functions\when( 'get_the_post_thumbnail_url' )->justReturn( false );
 		Functions\when( 'get_option' )->justReturn( '' );
+		Functions\when( 'get_theme_mod' )->justReturn( false );
+		Functions\when( 'wp_get_attachment_image_url' )->justReturn( false );
 
 		$data = $this->call_build_post_data( $post );
 
@@ -240,6 +244,8 @@ class ContentPdfTest extends TestCase {
 		Functions\when( 'get_permalink' )->justReturn( '' );
 		Functions\when( 'get_the_post_thumbnail_url' )->justReturn( 'https://example.com/image.jpg' );
 		Functions\when( 'get_option' )->justReturn( '' );
+		Functions\when( 'get_theme_mod' )->justReturn( false );
+		Functions\when( 'wp_get_attachment_image_url' )->justReturn( false );
 
 		$data = $this->call_build_post_data( $post );
 
@@ -257,6 +263,8 @@ class ContentPdfTest extends TestCase {
 		Functions\when( 'get_permalink' )->justReturn( '' );
 		Functions\when( 'get_the_post_thumbnail_url' )->justReturn( false );
 		Functions\when( 'get_option' )->justReturn( '' );
+		Functions\when( 'get_theme_mod' )->justReturn( false );
+		Functions\when( 'wp_get_attachment_image_url' )->justReturn( false );
 
 		$data = $this->call_build_post_data( $post );
 
@@ -277,6 +285,8 @@ class ContentPdfTest extends TestCase {
 			'docrenders_custom_css' => 'body { font-size: 14pt; }',
 			default                 => $default ?? '',
 		} );
+		Functions\when( 'get_theme_mod' )->justReturn( false );
+		Functions\when( 'wp_get_attachment_image_url' )->justReturn( false );
 
 		$data = $this->call_build_post_data( $post );
 
@@ -294,6 +304,8 @@ class ContentPdfTest extends TestCase {
 		Functions\when( 'get_permalink' )->justReturn( '' );
 		Functions\when( 'get_the_post_thumbnail_url' )->justReturn( false );
 		Functions\when( 'get_option' )->justReturn( '' );
+		Functions\when( 'get_theme_mod' )->justReturn( false );
+		Functions\when( 'wp_get_attachment_image_url' )->justReturn( false );
 
 		$data = $this->call_build_post_data( $post );
 
@@ -310,6 +322,8 @@ class ContentPdfTest extends TestCase {
 		Functions\when( 'get_permalink' )->justReturn( '' );
 		Functions\when( 'get_the_post_thumbnail_url' )->justReturn( false );
 		Functions\when( 'get_option' )->justReturn( '' );
+		Functions\when( 'get_theme_mod' )->justReturn( false );
+		Functions\when( 'wp_get_attachment_image_url' )->justReturn( false );
 		Functions\expect( 'apply_filters' )
 			->once()
 			->with( 'the_content', 'raw' )
@@ -318,6 +332,44 @@ class ContentPdfTest extends TestCase {
 		$data = $this->call_build_post_data( $post );
 
 		$this->assertSame( '<p>processed</p>', $data['content'] );
+	}
+
+	public function test_build_post_data_includes_logo_when_custom_logo_set(): void {
+		$post = new WP_Post( [ 'ID' => 12, 'post_content' => '', 'post_author' => 1 ] );
+
+		Functions\when( 'get_the_title' )->justReturn( 'T' );
+		Functions\when( 'apply_filters' )->justReturn( '' );
+		Functions\when( 'get_bloginfo' )->justReturn( '' );
+		Functions\when( 'get_the_date' )->justReturn( '' );
+		Functions\when( 'get_the_author_meta' )->justReturn( '' );
+		Functions\when( 'get_permalink' )->justReturn( '' );
+		Functions\when( 'get_the_post_thumbnail_url' )->justReturn( false );
+		Functions\when( 'get_option' )->justReturn( '' );
+		Functions\when( 'get_theme_mod' )->justReturn( 42 );
+		Functions\when( 'wp_get_attachment_image_url' )->justReturn( 'https://example.com/logo.png' );
+
+		$data = $this->call_build_post_data( $post );
+
+		$this->assertSame( 'https://example.com/logo.png', $data['logo'] );
+	}
+
+	public function test_build_post_data_omits_logo_when_no_custom_logo(): void {
+		$post = new WP_Post( [ 'ID' => 13, 'post_content' => '', 'post_author' => 1 ] );
+
+		Functions\when( 'get_the_title' )->justReturn( 'T' );
+		Functions\when( 'apply_filters' )->justReturn( '' );
+		Functions\when( 'get_bloginfo' )->justReturn( '' );
+		Functions\when( 'get_the_date' )->justReturn( '' );
+		Functions\when( 'get_the_author_meta' )->justReturn( '' );
+		Functions\when( 'get_permalink' )->justReturn( '' );
+		Functions\when( 'get_the_post_thumbnail_url' )->justReturn( false );
+		Functions\when( 'get_option' )->justReturn( '' );
+		Functions\when( 'get_theme_mod' )->justReturn( false );
+		Functions\when( 'wp_get_attachment_image_url' )->justReturn( false );
+
+		$data = $this->call_build_post_data( $post );
+
+		$this->assertArrayNotHasKey( 'logo', $data );
 	}
 
 	// -------------------------------------------------------------------------
