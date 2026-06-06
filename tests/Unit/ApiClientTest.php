@@ -93,6 +93,7 @@ class ApiClientTest extends TestCase {
 
 		$client = new DocRenders_API_Client( 'dcr_live_test' );
 		$client->render_html( $html );
+		$this->addToAssertionCount( 1 );
 	}
 
 	public function test_render_html_sends_authorization_header(): void {
@@ -109,6 +110,7 @@ class ApiClientTest extends TestCase {
 
 		$client = new DocRenders_API_Client( $key );
 		$client->render_html( '<p>Test</p>' );
+		$this->addToAssertionCount( 1 );
 	}
 
 	public function test_render_html_passes_format_option(): void {
@@ -125,6 +127,7 @@ class ApiClientTest extends TestCase {
 
 		$client = new DocRenders_API_Client( 'dcr_live_test' );
 		$client->render_html( '<p>Test</p>', [ 'format' => 'Letter' ] );
+		$this->addToAssertionCount( 1 );
 	}
 
 	public function test_render_html_passes_landscape_option(): void {
@@ -141,6 +144,7 @@ class ApiClientTest extends TestCase {
 
 		$client = new DocRenders_API_Client( 'dcr_live_test' );
 		$client->render_html( '<p>Test</p>', [ 'landscape' => true ] );
+		$this->addToAssertionCount( 1 );
 	}
 
 	// -------------------------------------------------------------------------
@@ -182,6 +186,7 @@ class ApiClientTest extends TestCase {
 
 		$client = new DocRenders_API_Client( 'dcr_live_test' );
 		$client->get_usage();
+		$this->addToAssertionCount( 1 );
 	}
 
 	public function test_get_usage_bypasses_cache_when_forced(): void {
@@ -236,6 +241,7 @@ class ApiClientTest extends TestCase {
 
 		$client = new DocRenders_API_Client( $key );
 		$client->get_usage();
+		$this->addToAssertionCount( 1 );
 	}
 
 	// -------------------------------------------------------------------------

@@ -18,6 +18,11 @@ class SettingsSanitizeTest extends TestCase {
 	protected function setUp(): void {
 		parent::setUp();
 		Monkey\setUp();
+
+		// Stub common WP escaping/sanitizing functions used across multiple tests.
+		Functions\when( 'sanitize_key' )->alias( fn( $s ) => strtolower( preg_replace( '/[^a-z0-9_\-]/', '', $s ) ) );
+		Functions\when( 'esc_html' )->alias( 'htmlspecialchars' );
+
 		$this->settings = new DocRenders_Settings();
 	}
 
