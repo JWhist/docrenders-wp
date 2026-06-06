@@ -108,8 +108,8 @@ class DocRenders_Content_PDF {
 			wp_send_json_error( [ 'message' => 'Access denied.' ], 403 );
 		}
 
-		$html   = $this->build_html( $post );
-		$result = $this->client->render_html( $html );
+		$data   = $this->build_post_data( $post );
+		$result = $this->client->render_template( 'post', $data );
 
 		if ( is_wp_error( $result ) ) {
 			// phpcs:ignore WordPress.PHP.DevelopmentFunctions.error_log_error_log
@@ -130,128 +130,30 @@ class DocRenders_Content_PDF {
 	}
 
 	// -------------------------------------------------------------------------
-	// HTML document builder
+	// Post data builder
 	// -------------------------------------------------------------------------
 
-	private function build_html( WP_Post $post ): string {
-		$title      = get_the_title( $post );
-		$content    = apply_filters( 'the_content', $post->post_content );
-		$print_css  = $this->load_print_css();
-		$theme_css  = $this->load_theme_css();
+	public function build_post_data( WP_Post $post ): array {
+		$data = [
+			'title'      => get_the_title( $post ),
+			'content'    => apply_filters( 'the_content', $post->post_content ),
+			'site_name'  => get_bloginfo( 'name' ),
+			'post_date'  => get_the_date( get_option( 'date_format' ), $post ),
+			'author'     => get_the_author_meta( 'display_name', $post->post_author ),
+			'url'        => get_permalink( $post->ID ),
+		];
+
+		$featured_image = get_the_post_thumbnail_url( $post->ID, 'large' );
+		if ( $featured_image ) {
+			$data['featured_image'] = $featured_image;
+		}
+
 		$custom_css = get_option( 'docrenders_custom_css', '' );
-		$footer     = $this->client->is_paid_plan() ? '' : $this->branding_footer();
-
-		return '<!DOCTYPE html>'
-			. '<html><head>'
-			. '<meta charset="UTF-8">'
-			. '<title>' . esc_html( $title ) . '</title>'
-			. ( $theme_css ? '<style>' . $theme_css . '</style>' : '' )
-			. '<style>' . $print_css . '</style>'
-			. ( $custom_css ? '<style>' . $custom_css . '</style>' : '' )
-			. '</head><body class="single-' . esc_attr( $post->post_type ) . '">'
-			. '<article class="post entry">'
-			. '<header class="entry-header"><h1 class="entry-title">' . esc_html( $title ) . '</h1></header>'
-			. '<div class="entry-content">' . $content . '</div>'
-			. '</article>'
-			. $footer
-			. '</body></html>';
-	}
-
-	private function load_theme_css(): string {
-		$css = '';
-
-		// @font-face declarations are generated separately from the global
-		// stylesheet in block themes (via WP_Font_Face / wp_print_font_faces).
-		if ( function_exists( 'wp_print_font_faces' ) ) {
-			ob_start();
-			wp_print_font_faces();
-			$font_html = ob_get_clean();
-			$font_css  = preg_replace( '/<style[^>]*>|<\/style>/i', '', $font_html ?? '' );
-			$font_css  = trim( $font_css );
-			$css .= $this->inline_local_font_urls( $font_css );
+		if ( $custom_css ) {
+			$data['custom_css'] = $custom_css;
 		}
 
-		// Global stylesheet covers CSS custom properties, typography, and colours.
-		if ( function_exists( 'wp_get_global_stylesheet' ) ) {
-			$css .= wp_get_global_stylesheet();
-		} else {
-			// Classic theme fallback: inline the main stylesheet.
-			$uri = get_stylesheet_uri();
-			if ( $uri ) {
-				$response = wp_remote_get( $uri, [ 'timeout' => 10 ] );
-				if ( ! is_wp_error( $response ) && 200 === wp_remote_retrieve_response_code( $response ) ) {
-					$css .= $this->inline_local_font_urls( wp_remote_retrieve_body( $response ) );
-				}
-			}
-		}
-
-		return $css;
-	}
-
-	/**
-	 * Replace local font URLs in CSS with base64 data URIs so the remote
-	 * DocRenders renderer can load fonts without reaching the site's server.
-	 */
-	private function inline_local_font_urls( string $css ): string {
-		$home    = home_url();
-		$c_url   = content_url();
-		$c_dir   = WP_CONTENT_DIR;
-		$ab_url  = trailingslashit( $home );
-		$ab_dir  = ABSPATH;
-
-		return preg_replace_callback(
-			'/url\([\'"]?([^\'")\s]+\.(?:woff2|woff|ttf|otf))[\'"]?\)/i',
-			function ( $matches ) use ( $home, $c_url, $c_dir, $ab_url, $ab_dir ) {
-				$url = $matches[1];
-
-				if ( ! str_starts_with( $url, $home ) ) {
-					return $matches[0];
-				}
-
-				$path = str_starts_with( $url, $c_url )
-					? $c_dir . substr( $url, strlen( $c_url ) )
-					: $ab_dir . substr( $url, strlen( $ab_url ) );
-
-				// Strip query strings from the path.
-				$path = strtok( $path, '?' );
-
-				// Resolve symlinks/traversal and ensure the file is within the WordPress install.
-				$real = realpath( $path );
-				if ( ! $real || ! str_starts_with( $real, realpath( ABSPATH ) ) ) {
-					return $matches[0];
-				}
-				$path = $real;
-
-				if ( ! is_readable( $path ) ) {
-					return $matches[0];
-				}
-
-				$ext  = strtolower( pathinfo( $path, PATHINFO_EXTENSION ) );
-				$mime = match ( $ext ) {
-					'woff2' => 'font/woff2',
-					'woff'  => 'font/woff',
-					default => 'font/truetype',
-				};
-
-				// phpcs:ignore WordPress.WP.AlternativeFunctions.file_get_contents_file_get_contents
-				$data = base64_encode( file_get_contents( $path ) );
-
-				return "url('data:{$mime};base64,{$data}')";
-			},
-			$css
-		);
-	}
-
-	private function load_print_css(): string {
-		$path = DOCRENDERS_DIR . 'templates/print-styles.css';
-		// phpcs:ignore WordPress.WP.AlternativeFunctions.file_get_contents_file_get_contents
-		return file_exists( $path ) ? file_get_contents( $path ) : '';
-	}
-
-	private function branding_footer(): string {
-		return '<div style="position:fixed;bottom:16px;right:16px;font-size:10px;color:#94a3b8;font-family:sans-serif">'
-			. 'PDF generated by <a href="https://docrenders.com" style="color:#94a3b8">DocRenders</a>'
-			. '</div>';
+		return $data;
 	}
 
 	// -------------------------------------------------------------------------
