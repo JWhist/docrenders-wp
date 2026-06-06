@@ -148,6 +148,14 @@ class DocRenders_Content_PDF {
 			$data['featured_image'] = $featured_image;
 		}
 
+		$logo_id = get_theme_mod( 'custom_logo' );
+		if ( $logo_id ) {
+			$logo_url = wp_get_attachment_image_url( $logo_id, 'medium' );
+			if ( $logo_url ) {
+				$data['logo'] = $logo_url;
+			}
+		}
+
 		$custom_css = get_option( 'docrenders_custom_css', '' );
 		if ( $custom_css ) {
 			$data['custom_css'] = $custom_css;
