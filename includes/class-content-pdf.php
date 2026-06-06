@@ -38,7 +38,7 @@ class DocRenders_Content_PDF {
 			return $content;
 		}
 
-		$placement = get_option( 'docrenders_button_placement', 'after_content' );
+		$placement = get_option( 'docrenders_button_placement', 'shortcode' );
 		if ( 'shortcode' === $placement ) {
 			return $content;
 		}

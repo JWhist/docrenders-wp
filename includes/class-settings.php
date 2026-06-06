@@ -40,7 +40,7 @@ class DocRenders_Settings {
 		register_setting( 'docrenders', 'docrenders_button_placement', [
 			'type'              => 'string',
 			'sanitize_callback' => [ $this, 'sanitize_placement' ],
-			'default'           => 'after_content',
+			'default'           => 'shortcode',
 		] );
 
 		register_setting( 'docrenders', 'docrenders_post_types', [
@@ -131,7 +131,7 @@ class DocRenders_Settings {
 
 	public function sanitize_placement( string $value ): string {
 		$allowed = [ 'after_content', 'before_content', 'shortcode' ];
-		return in_array( $value, $allowed, true ) ? $value : 'after_content';
+		return in_array( $value, $allowed, true ) ? $value : 'shortcode';
 	}
 
 	public function sanitize_post_types( $value ): array {
@@ -164,7 +164,7 @@ class DocRenders_Settings {
 	}
 
 	public function field_button_placement(): void {
-		$value   = get_option( 'docrenders_button_placement', 'after_content' );
+		$value   = get_option( 'docrenders_button_placement', 'shortcode' );
 		$options = [
 			'after_content'  => 'After content',
 			'before_content' => 'Before content',
