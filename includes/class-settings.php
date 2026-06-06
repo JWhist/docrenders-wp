@@ -62,6 +62,47 @@ class DocRenders_Settings {
 		add_settings_field( 'docrenders_button_placement', 'Button Placement', [ $this, 'field_button_placement' ], 'docrenders', 'docrenders_main' );
 		add_settings_field( 'docrenders_post_types', 'Enabled Post Types', [ $this, 'field_post_types' ], 'docrenders', 'docrenders_main' );
 		add_settings_field( 'docrenders_custom_css', 'Custom CSS', [ $this, 'field_custom_css' ], 'docrenders', 'docrenders_main' );
+
+		if ( class_exists( 'WooCommerce' ) ) {
+			$this->register_woo_settings();
+		}
+	}
+
+	private function register_woo_settings(): void {
+		$woo_options = [
+			'docrenders_woo_enabled'        => [ 'type' => 'string',  'sanitize' => [ $this, 'sanitize_checkbox' ] ],
+			'docrenders_woo_trigger'         => [ 'type' => 'string',  'sanitize' => [ $this, 'sanitize_woo_trigger' ] ],
+			'docrenders_woo_shop_name'       => [ 'type' => 'string',  'sanitize' => 'sanitize_text_field' ],
+			'docrenders_woo_shop_address'    => [ 'type' => 'string',  'sanitize' => 'sanitize_textarea_field' ],
+			'docrenders_woo_shop_email'      => [ 'type' => 'string',  'sanitize' => 'sanitize_email' ],
+			'docrenders_woo_shop_vat_id'     => [ 'type' => 'string',  'sanitize' => 'sanitize_text_field' ],
+			'docrenders_woo_invoice_prefix'  => [ 'type' => 'string',  'sanitize' => 'sanitize_text_field' ],
+			'docrenders_woo_footer_text'     => [ 'type' => 'string',  'sanitize' => 'sanitize_textarea_field' ],
+		];
+
+		foreach ( $woo_options as $name => $args ) {
+			register_setting( 'docrenders', $name, [
+				'type'              => $args['type'],
+				'sanitize_callback' => $args['sanitize'],
+				'default'           => '',
+			] );
+		}
+
+		add_settings_section(
+			'docrenders_woo',
+			'WooCommerce Invoices',
+			[ $this, 'section_woo_description' ],
+			'docrenders'
+		);
+
+		add_settings_field( 'docrenders_woo_enabled', 'Enable WooCommerce', [ $this, 'field_woo_enabled' ], 'docrenders', 'docrenders_woo' );
+		add_settings_field( 'docrenders_woo_trigger', 'Trigger', [ $this, 'field_woo_trigger' ], 'docrenders', 'docrenders_woo' );
+		add_settings_field( 'docrenders_woo_shop_name', 'Shop Name', [ $this, 'field_woo_shop_name' ], 'docrenders', 'docrenders_woo' );
+		add_settings_field( 'docrenders_woo_shop_address', 'Shop Address', [ $this, 'field_woo_shop_address' ], 'docrenders', 'docrenders_woo' );
+		add_settings_field( 'docrenders_woo_shop_email', 'Shop Email', [ $this, 'field_woo_shop_email' ], 'docrenders', 'docrenders_woo' );
+		add_settings_field( 'docrenders_woo_shop_vat_id', 'VAT / Tax ID', [ $this, 'field_woo_shop_vat_id' ], 'docrenders', 'docrenders_woo' );
+		add_settings_field( 'docrenders_woo_invoice_prefix', 'Invoice Prefix', [ $this, 'field_woo_invoice_prefix' ], 'docrenders', 'docrenders_woo' );
+		add_settings_field( 'docrenders_woo_footer_text', 'Invoice Footer', [ $this, 'field_woo_footer_text' ], 'docrenders', 'docrenders_woo' );
 	}
 
 	public function sanitize_api_key( string $value ): string {
@@ -228,6 +269,102 @@ class DocRenders_Settings {
 			</div>
 		</div>
 		<?php
+	}
+
+	// -------------------------------------------------------------------------
+	// WooCommerce sanitize callbacks
+	// -------------------------------------------------------------------------
+
+	public function sanitize_checkbox( $value ): string {
+		return $value ? '1' : '';
+	}
+
+	public function sanitize_woo_trigger( string $value ): string {
+		return in_array( $value, [ 'on_complete', 'manually' ], true ) ? $value : 'on_complete';
+	}
+
+	// -------------------------------------------------------------------------
+	// WooCommerce field renderers
+	// -------------------------------------------------------------------------
+
+	public function section_woo_description(): void {
+		echo '<p>Automatically attach a branded PDF invoice to WooCommerce order completion emails.</p>';
+	}
+
+	public function field_woo_enabled(): void {
+		$value = get_option( 'docrenders_woo_enabled', '' );
+		printf(
+			'<label><input type="checkbox" name="docrenders_woo_enabled" value="1"%s> Generate PDF invoices for WooCommerce orders</label>',
+			checked( $value, '1', false )
+		);
+	}
+
+	public function field_woo_trigger(): void {
+		$value   = get_option( 'docrenders_woo_trigger', 'on_complete' );
+		$options = [
+			'on_complete' => 'Automatically on order completion (attached to confirmation email)',
+			'manually'    => 'Manually only (generate from the order admin screen)',
+		];
+		foreach ( $options as $key => $label ) {
+			printf(
+				'<label style="display:block;margin-bottom:4px"><input type="radio" name="docrenders_woo_trigger" value="%s"%s> %s</label>',
+				esc_attr( $key ),
+				checked( $value, $key, false ),
+				esc_html( $label )
+			);
+		}
+	}
+
+	public function field_woo_shop_name(): void {
+		$value = get_option( 'docrenders_woo_shop_name', get_bloginfo( 'name' ) );
+		printf(
+			'<input type="text" name="docrenders_woo_shop_name" value="%s" class="regular-text">',
+			esc_attr( $value )
+		);
+	}
+
+	public function field_woo_shop_address(): void {
+		$value = get_option( 'docrenders_woo_shop_address', '' );
+		printf(
+			'<textarea name="docrenders_woo_shop_address" rows="4" class="regular-text">%s</textarea>
+			<p class="description">Street, city, postcode, country — one line each.</p>',
+			esc_textarea( $value )
+		);
+	}
+
+	public function field_woo_shop_email(): void {
+		$value = get_option( 'docrenders_woo_shop_email', get_option( 'admin_email' ) );
+		printf(
+			'<input type="email" name="docrenders_woo_shop_email" value="%s" class="regular-text">',
+			esc_attr( $value )
+		);
+	}
+
+	public function field_woo_shop_vat_id(): void {
+		$value = get_option( 'docrenders_woo_shop_vat_id', '' );
+		printf(
+			'<input type="text" name="docrenders_woo_shop_vat_id" value="%s" class="regular-text">
+			<p class="description">Optional. Shown in the FROM column and invoice footer.</p>',
+			esc_attr( $value )
+		);
+	}
+
+	public function field_woo_invoice_prefix(): void {
+		$value = get_option( 'docrenders_woo_invoice_prefix', 'INV-' );
+		printf(
+			'<input type="text" name="docrenders_woo_invoice_prefix" value="%s" class="small-text">
+			<p class="description">Prepended to the sequential counter, e.g. <code>INV-0001</code>.</p>',
+			esc_attr( $value )
+		);
+	}
+
+	public function field_woo_footer_text(): void {
+		$value = get_option( 'docrenders_woo_footer_text', '' );
+		printf(
+			'<textarea name="docrenders_woo_footer_text" rows="3" class="large-text">%s</textarea>
+			<p class="description">Appears at the bottom of every invoice — tax IDs, return policy, terms.</p>',
+			esc_textarea( $value )
+		);
 	}
 
 	public function enqueue_admin_assets( string $hook ): void {

@@ -18,73 +18,37 @@ class DocRenders_API_Client {
 	/**
 	 * Render an HTML string to PDF.
 	 *
-	 * Returns raw PDF bytes on success, WP_Error on failure.
-	 * HTTP status 429 → WP_Error code 'quota_exceeded' or 'rate_limited'.
-	 * HTTP status 402 → WP_Error code 'payment_required'.
-	 *
 	 * @param string $html    Full HTML document to render.
-	 * @param array  $options Optional render options:
-	 *                        'format'        string  A4 | Letter | Legal (default A4)
-	 *                        'margin_top'    string  CSS value, e.g. "1in"
-	 *                        'margin_right'  string
-	 *                        'margin_bottom' string
-	 *                        'margin_left'   string
-	 *                        'landscape'     bool
-	 * @return string|WP_Error
+	 * @param array  $options 'format', 'margin_top/right/bottom/left', 'landscape'
+	 * @return string|WP_Error Raw PDF bytes on success.
 	 */
 	public function render_html( string $html, array $options = [] ) {
 		$body = [ 'html' => $html ];
+		$this->apply_options( $body, $options );
+		return $this->post_render( $body );
+	}
 
-		if ( ! empty( $options['format'] ) ) {
-			$body['options']['format'] = $options['format'];
-		}
-		foreach ( [ 'margin_top', 'margin_right', 'margin_bottom', 'margin_left' ] as $margin ) {
-			if ( ! empty( $options[ $margin ] ) ) {
-				$body['options'][ $margin ] = $options[ $margin ];
-			}
-		}
-		if ( isset( $options['landscape'] ) ) {
-			$body['options']['landscape'] = (bool) $options['landscape'];
-		}
-
-		$response = wp_remote_post(
-			self::API_BASE . '/render',
-			[
-				'headers' => [
-					'Authorization' => 'Bearer ' . $this->api_key,
-					'Content-Type'  => 'application/json',
-				],
-				'body'    => wp_json_encode( $body ),
-				'timeout' => 60,
-			]
-		);
-
-		if ( is_wp_error( $response ) ) {
-			return $response;
-		}
-
-		$status      = wp_remote_retrieve_response_code( $response );
-		$body_string = wp_remote_retrieve_body( $response );
-
-		if ( 200 === $status ) {
-			return $body_string;
-		}
-
-		$data    = json_decode( $body_string, true );
-		$code    = $data['error']['code'] ?? 'docrenders_error';
-		$message = $data['error']['message'] ?? wp_remote_retrieve_response_message( $response );
-
-		return new WP_Error( $code, $message, [ 'status' => $status ] );
+	/**
+	 * Render a named template with data to PDF.
+	 *
+	 * @param string $template Template name (e.g. 'woo-invoice').
+	 * @param array  $data     Template field values.
+	 * @param array  $options  Same render options as render_html.
+	 * @return string|WP_Error Raw PDF bytes on success.
+	 */
+	public function render_template( string $template, array $data, array $options = [] ) {
+		$body = [
+			'template' => $template,
+			'data'     => $data,
+		];
+		$this->apply_options( $body, $options );
+		return $this->post_render( $body );
 	}
 
 	/**
 	 * Fetch current-period usage for the authenticated key.
 	 *
-	 * Cached for 5 minutes. Pass $force = true to bypass the cache (e.g. after
-	 * the settings page saves a new key).
-	 *
-	 * Returns an array with keys: plan, renders_used, renders_limit,
-	 * renders_remaining, period_start, period_end.
+	 * Cached for 5 minutes. Pass $force = true to bypass the cache.
 	 *
 	 * @param bool $force Skip the transient cache.
 	 * @return array|WP_Error
@@ -127,9 +91,7 @@ class DocRenders_API_Client {
 
 	/**
 	 * Returns true if the API key belongs to a paid plan.
-	 *
-	 * Used to gate branding footer injection — free plan gets the footer,
-	 * everything else does not. Defaults to false (free behavior) on error.
+	 * Defaults to false (free behavior) on error.
 	 *
 	 * @return bool
 	 */
@@ -139,5 +101,54 @@ class DocRenders_API_Client {
 			return false;
 		}
 		return ( $usage['plan'] ?? 'free' ) !== 'free';
+	}
+
+	// -------------------------------------------------------------------------
+	// Private helpers
+	// -------------------------------------------------------------------------
+
+	private function post_render( array $body ) {
+		$response = wp_remote_post(
+			self::API_BASE . '/render',
+			[
+				'headers' => [
+					'Authorization' => 'Bearer ' . $this->api_key,
+					'Content-Type'  => 'application/json',
+				],
+				'body'    => wp_json_encode( $body ),
+				'timeout' => 60,
+			]
+		);
+
+		if ( is_wp_error( $response ) ) {
+			return $response;
+		}
+
+		$status      = wp_remote_retrieve_response_code( $response );
+		$body_string = wp_remote_retrieve_body( $response );
+
+		if ( 200 === $status ) {
+			return $body_string;
+		}
+
+		$data    = json_decode( $body_string, true );
+		$code    = $data['error']['code'] ?? 'docrenders_error';
+		$message = $data['error']['message'] ?? wp_remote_retrieve_response_message( $response );
+
+		return new WP_Error( $code, $message, [ 'status' => $status ] );
+	}
+
+	private function apply_options( array &$body, array $options ): void {
+		if ( ! empty( $options['format'] ) ) {
+			$body['options']['format'] = $options['format'];
+		}
+		foreach ( [ 'margin_top', 'margin_right', 'margin_bottom', 'margin_left' ] as $margin ) {
+			if ( ! empty( $options[ $margin ] ) ) {
+				$body['options'][ $margin ] = $options[ $margin ];
+			}
+		}
+		if ( isset( $options['landscape'] ) ) {
+			$body['options']['landscape'] = (bool) $options['landscape'];
+		}
 	}
 }

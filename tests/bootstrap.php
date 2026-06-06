@@ -10,3 +10,4 @@ require_once __DIR__ . '/stubs.php';
 require_once dirname( __DIR__ ) . '/includes/class-api-client.php';
 require_once dirname( __DIR__ ) . '/includes/class-settings.php';
 require_once dirname( __DIR__ ) . '/includes/class-content-pdf.php';
+require_once dirname( __DIR__ ) . '/includes/class-woo-invoices.php';
