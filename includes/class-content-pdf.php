@@ -159,17 +159,64 @@ class DocRenders_Content_PDF {
 		// Block themes expose a generated stylesheet from theme.json covering
 		// fonts, colours, and typography — exactly what we want for the PDF.
 		if ( function_exists( 'wp_get_global_stylesheet' ) ) {
-			return wp_get_global_stylesheet();
+			return $this->inline_local_font_urls( wp_get_global_stylesheet() );
 		}
 		// Classic theme fallback: inline the registered main stylesheet.
 		$uri = get_stylesheet_uri();
 		if ( $uri ) {
 			$response = wp_remote_get( $uri, [ 'timeout' => 10 ] );
 			if ( ! is_wp_error( $response ) && 200 === wp_remote_retrieve_response_code( $response ) ) {
-				return wp_remote_retrieve_body( $response );
+				return $this->inline_local_font_urls( wp_remote_retrieve_body( $response ) );
 			}
 		}
 		return '';
+	}
+
+	/**
+	 * Replace local font URLs in CSS with base64 data URIs so the remote
+	 * DocRenders renderer can load fonts without reaching the site's server.
+	 */
+	private function inline_local_font_urls( string $css ): string {
+		$home    = home_url();
+		$c_url   = content_url();
+		$c_dir   = WP_CONTENT_DIR;
+		$ab_url  = trailingslashit( $home );
+		$ab_dir  = ABSPATH;
+
+		return preg_replace_callback(
+			'/url\([\'"]?([^\'")\s]+\.(?:woff2|woff|ttf|otf))[\'"]?\)/i',
+			function ( $matches ) use ( $home, $c_url, $c_dir, $ab_url, $ab_dir ) {
+				$url = $matches[1];
+
+				if ( ! str_starts_with( $url, $home ) ) {
+					return $matches[0];
+				}
+
+				$path = str_starts_with( $url, $c_url )
+					? $c_dir . substr( $url, strlen( $c_url ) )
+					: $ab_dir . substr( $url, strlen( $ab_url ) );
+
+				// Strip query strings from the path.
+				$path = strtok( $path, '?' );
+
+				if ( ! file_exists( $path ) || ! is_readable( $path ) ) {
+					return $matches[0];
+				}
+
+				$ext  = strtolower( pathinfo( $path, PATHINFO_EXTENSION ) );
+				$mime = match ( $ext ) {
+					'woff2' => 'font/woff2',
+					'woff'  => 'font/woff',
+					default => 'font/truetype',
+				};
+
+				// phpcs:ignore WordPress.WP.AlternativeFunctions.file_get_contents_file_get_contents
+				$data = base64_encode( file_get_contents( $path ) );
+
+				return "url('data:{$mime};base64,{$data}')";
+			},
+			$css
+		);
 	}
 
 	private function load_print_css(): string {
