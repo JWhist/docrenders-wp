@@ -13,6 +13,9 @@ class ContentPdfTest extends TestCase {
 		parent::setUp();
 		Monkey\setUp();
 
+		Functions\when( 'wp_print_font_faces' )->justReturn( null );
+		Functions\when( 'wp_get_global_stylesheet' )->justReturn( '' );
+
 		$this->client = $this->createMock( DocRenders_API_Client::class );
 		$this->pdf    = new DocRenders_Content_PDF( $this->client );
 	}

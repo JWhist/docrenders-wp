@@ -50,7 +50,7 @@ class SettingsSanitizeTest extends TestCase {
 
 	/** @dataProvider invalidPlacementProvider */
 	public function test_sanitize_placement_rejects_invalid_values( string $value ): void {
-		$this->assertSame( 'after_content', $this->settings->sanitize_placement( $value ) );
+		$this->assertSame( 'shortcode', $this->settings->sanitize_placement( $value ) );
 	}
 
 	public static function invalidPlacementProvider(): array {
