@@ -156,20 +156,33 @@ class DocRenders_Content_PDF {
 	}
 
 	private function load_theme_css(): string {
-		// Block themes expose a generated stylesheet from theme.json covering
-		// fonts, colours, and typography — exactly what we want for the PDF.
-		if ( function_exists( 'wp_get_global_stylesheet' ) ) {
-			return $this->inline_local_font_urls( wp_get_global_stylesheet() );
+		$css = '';
+
+		// @font-face declarations are generated separately from the global
+		// stylesheet in block themes (via WP_Font_Face / wp_print_font_faces).
+		if ( function_exists( 'wp_print_font_faces' ) ) {
+			ob_start();
+			wp_print_font_faces();
+			$font_html = ob_get_clean();
+			$font_css  = preg_replace( '/<style[^>]*>|<\/style>/i', '', $font_html ?? '' );
+			$css      .= $this->inline_local_font_urls( trim( $font_css ) );
 		}
-		// Classic theme fallback: inline the registered main stylesheet.
-		$uri = get_stylesheet_uri();
-		if ( $uri ) {
-			$response = wp_remote_get( $uri, [ 'timeout' => 10 ] );
-			if ( ! is_wp_error( $response ) && 200 === wp_remote_retrieve_response_code( $response ) ) {
-				return $this->inline_local_font_urls( wp_remote_retrieve_body( $response ) );
+
+		// Global stylesheet covers CSS custom properties, typography, and colours.
+		if ( function_exists( 'wp_get_global_stylesheet' ) ) {
+			$css .= wp_get_global_stylesheet();
+		} else {
+			// Classic theme fallback: inline the main stylesheet.
+			$uri = get_stylesheet_uri();
+			if ( $uri ) {
+				$response = wp_remote_get( $uri, [ 'timeout' => 10 ] );
+				if ( ! is_wp_error( $response ) && 200 === wp_remote_retrieve_response_code( $response ) ) {
+					$css .= $this->inline_local_font_urls( wp_remote_retrieve_body( $response ) );
+				}
 			}
 		}
-		return '';
+
+		return $css;
 	}
 
 	/**
