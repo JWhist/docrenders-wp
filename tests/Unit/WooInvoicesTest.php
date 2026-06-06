@@ -125,10 +125,7 @@ class WooInvoicesTest extends TestCase {
 		$item->method( 'get_total' )->willReturn( '59.98' );
 		$item->method( 'get_total_tax' )->willReturn( '4.95' );
 
-		$order = $this->make_simple_order();
-		$order->method( 'get_items' )->willReturn( [ $item ] );
-		$order->method( 'get_total_tax' )->willReturn( '4.95' );
-
+		$order = $this->make_items_order( [ $item ], '4.95' );
 		$result = $this->woo->build_items( $order );
 
 		$this->assertCount( 1, $result['items'] );
@@ -151,11 +148,7 @@ class WooInvoicesTest extends TestCase {
 		$item->method( 'get_total_tax' )->willReturn( '0' );
 		$item->method( 'get_name' )->willReturn( 'Item' );
 
-		$order = $this->make_simple_order();
-		$order->method( 'get_items' )->willReturn( [ $item ] );
-		$order->method( 'get_total_tax' )->willReturn( '0' );
-
-		$result = $this->woo->build_items( $order );
+		$result = $this->woo->build_items( $this->make_items_order( [ $item ] ) );
 
 		$this->assertTrue( $result['has_sku'] );
 	}
@@ -171,21 +164,13 @@ class WooInvoicesTest extends TestCase {
 		$item->method( 'get_total_tax' )->willReturn( '0' );
 		$item->method( 'get_name' )->willReturn( 'Item' );
 
-		$order = $this->make_simple_order();
-		$order->method( 'get_items' )->willReturn( [ $item ] );
-		$order->method( 'get_total_tax' )->willReturn( '0' );
-
-		$result = $this->woo->build_items( $order );
+		$result = $this->woo->build_items( $this->make_items_order( [ $item ] ) );
 
 		$this->assertFalse( $result['has_sku'] );
 	}
 
 	public function test_build_items_sets_has_tax_true_when_order_has_tax(): void {
-		$order = $this->make_simple_order();
-		$order->method( 'get_items' )->willReturn( [] );
-		$order->method( 'get_total_tax' )->willReturn( '8.50' );
-
-		$result = $this->woo->build_items( $order );
+		$result = $this->woo->build_items( $this->make_items_order( [], '8.50' ) );
 
 		$this->assertTrue( $result['has_tax'] );
 	}
@@ -198,11 +183,7 @@ class WooInvoicesTest extends TestCase {
 		$item->method( 'get_total_tax' )->willReturn( '0' );
 		$item->method( 'get_name' )->willReturn( 'Manual Item' );
 
-		$order = $this->make_simple_order();
-		$order->method( 'get_items' )->willReturn( [ $item ] );
-		$order->method( 'get_total_tax' )->willReturn( '0' );
-
-		$result = $this->woo->build_items( $order );
+		$result = $this->woo->build_items( $this->make_items_order( [ $item ] ) );
 
 		$this->assertSame( '', $result['items'][0]['sku'] );
 		$this->assertFalse( $result['has_sku'] );
@@ -213,11 +194,11 @@ class WooInvoicesTest extends TestCase {
 	// -------------------------------------------------------------------------
 
 	public function test_build_tax_lines_maps_label_and_amount(): void {
-		$tax        = new stdClass();
+		$tax         = new stdClass();
 		$tax->label  = 'Sales Tax 8%';
 		$tax->amount = '8.00';
 
-		$order = $this->make_simple_order();
+		$order = $this->createMock( WC_Order::class );
 		$order->method( 'get_tax_totals' )->willReturn( [ $tax ] );
 
 		$lines = $this->woo->build_tax_lines( $order );
@@ -259,6 +240,9 @@ class WooInvoicesTest extends TestCase {
 		Functions\expect( 'update_option' )
 			->with( 'docrenders_limit_reached', true )
 			->once();
+		Functions\expect( 'update_option' )
+			->with( 'docrenders_failed_invoices', \Mockery::any() )
+			->once();
 
 		$order = $this->make_order_with_invoice_number( '1002' );
 		$order->method( 'get_id' )->willReturn( 1002 );
@@ -284,6 +268,9 @@ class WooInvoicesTest extends TestCase {
 
 	public function test_generate_pdf_clears_failed_order_and_limit_flag_on_success(): void {
 		Functions\when( 'add_option' )->justReturn( true );
+		Functions\expect( 'update_option' )
+			->with( 'docrenders_failed_invoices', \Mockery::any() )
+			->once();
 		Functions\expect( 'update_option' )
 			->with( 'docrenders_limit_reached', false )
 			->once();
@@ -434,21 +421,20 @@ class WooInvoicesTest extends TestCase {
 		$order->method( 'get_payment_method_title' )->willReturn( '' );
 		$order->method( 'get_shipping_methods' )->willReturn( [] );
 		$order->method( 'get_formatted_billing_full_name' )->willReturn( '' );
-		$order->method( 'get_formatted_billing_address' )->willReturn( '' );
-		$order->method( 'get_formatted_shipping_address' )->willReturn( '' );
-		$order->method( 'has_shipping_address' )->willReturn( false );
 		$order->method( 'get_billing_email' )->willReturn( '' );
 		$order->method( 'get_billing_phone' )->willReturn( '' );
 		$order->method( 'get_meta' )->willReturn( '' );
 		$order->method( 'get_items' )->willReturn( [] );
 		$order->method( 'get_tax_totals' )->willReturn( [] );
-		$order->method( 'get_subtotal' )->willReturn( '0' );
-		$order->method( 'get_shipping_total' )->willReturn( '0' );
-		$order->method( 'get_discount_total' )->willReturn( '0' );
-		$order->method( 'get_total' )->willReturn( '0' );
-		$order->method( 'get_total_tax' )->willReturn( '0' );
 		$order->method( 'get_customer_note' )->willReturn( '' );
 		$order->method( 'get_id' )->willReturn( 0 );
+		return $order;
+	}
+
+	private function make_items_order( array $items, string $total_tax = '0' ): WC_Order {
+		$order = $this->createMock( WC_Order::class );
+		$order->method( 'get_items' )->willReturn( $items );
+		$order->method( 'get_total_tax' )->willReturn( $total_tax );
 		return $order;
 	}
 

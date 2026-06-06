@@ -1,6 +1,7 @@
 <?php
 
 define( 'ABSPATH', '/tmp/wordpress/' );
+define( 'WP_CONTENT_DIR', '/tmp/wordpress/wp-content' );
 define( 'DOCRENDERS_VERSION', '1.0.0' );
 define( 'DOCRENDERS_DIR', dirname( __DIR__ ) . '/' );
 define( 'DOCRENDERS_URL', 'http://example.com/wp-content/plugins/docrenders/' );

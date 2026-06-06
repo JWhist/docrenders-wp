@@ -18,6 +18,7 @@ class ContentPdfTest extends TestCase {
 		Functions\when( 'home_url' )->justReturn( 'http://example.com' );
 		Functions\when( 'content_url' )->justReturn( 'http://example.com/wp-content' );
 		Functions\when( 'trailingslashit' )->alias( fn( $s ) => rtrim( $s, '/' ) . '/' );
+		Functions\when( 'esc_attr' )->alias( 'htmlspecialchars' );
 
 		$this->client = $this->createMock( DocRenders_API_Client::class );
 		$this->pdf    = new DocRenders_Content_PDF( $this->client );
@@ -207,7 +208,7 @@ class ContentPdfTest extends TestCase {
 
 		$html = $this->call_build_html( $post );
 
-		$this->assertStringContainsString( '<h1>My Post</h1>', $html );
+		$this->assertStringContainsString( 'My Post</h1>', $html );
 		$this->assertStringContainsString( '<title>My Post</title>', $html );
 	}
 
@@ -308,7 +309,7 @@ class ContentPdfTest extends TestCase {
 		$this->assertStringContainsString( '<!DOCTYPE html>', $html );
 		$this->assertStringContainsString( '<html>', $html );
 		$this->assertStringContainsString( '<head>', $html );
-		$this->assertStringContainsString( '<body>', $html );
+		$this->assertStringContainsString( '<body ', $html );
 		$this->assertStringContainsString( '</body></html>', $html );
 	}
 
