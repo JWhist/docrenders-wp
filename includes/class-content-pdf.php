@@ -18,6 +18,25 @@ class DocRenders_Content_PDF {
 		add_action( 'wp_enqueue_scripts', [ $this, 'enqueue_scripts' ] );
 		add_action( 'wp_ajax_docrenders_render', [ $this, 'handle_ajax' ] );
 		add_action( 'wp_ajax_nopriv_docrenders_render', [ $this, 'handle_ajax' ] );
+		add_action( 'init', [ $this, 'register_block' ] );
+	}
+
+	public function register_block(): void {
+		if ( ! function_exists( 'register_block_type' ) ) {
+			return;
+		}
+		register_block_type(
+			DOCRENDERS_DIR . 'blocks/pdf-button',
+			[
+				'render_callback' => function () {
+					$post = get_queried_object();
+					if ( ! $post instanceof WP_Post ) {
+						return '';
+					}
+					return $this->render_button( $post->ID );
+				},
+			]
+		);
 	}
 
 	// -------------------------------------------------------------------------

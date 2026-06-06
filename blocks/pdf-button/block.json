@@ -1,0 +1,16 @@
+{
+  "$schema": "https://schemas.wp.org/trunk/block.json",
+  "apiVersion": 3,
+  "name": "docrenders/pdf-button",
+  "title": "PDF Download Button",
+  "category": "widgets",
+  "icon": "download",
+  "description": "Adds a Download PDF button that generates a PDF of this post or page.",
+  "keywords": [ "pdf", "download", "print", "docrenders" ],
+  "supports": {
+    "html": false,
+    "multiple": false
+  },
+  "textdomain": "docrenders",
+  "editorScript": "file:./editor.js"
+}
