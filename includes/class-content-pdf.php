@@ -165,7 +165,8 @@ class DocRenders_Content_PDF {
 			wp_print_font_faces();
 			$font_html = ob_get_clean();
 			$font_css  = preg_replace( '/<style[^>]*>|<\/style>/i', '', $font_html ?? '' );
-			$css      .= $this->inline_local_font_urls( trim( $font_css ) );
+			$font_css  = trim( $font_css );
+			$css .= $this->inline_local_font_urls( $font_css );
 		}
 
 		// Global stylesheet covers CSS custom properties, typography, and colours.
