@@ -1,0 +1,14 @@
+{
+  "name": "docrenders-wp",
+  "version": "1.0.0",
+  "private": true,
+  "scripts": {
+    "env:start": "wp-env start",
+    "env:stop": "wp-env stop",
+    "env:clean": "wp-env clean all",
+    "env:logs": "wp-env logs"
+  },
+  "devDependencies": {
+    "@wordpress/env": "^11.8.0"
+  }
+}
