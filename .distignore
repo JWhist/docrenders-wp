@@ -1,0 +1,16 @@
+# Development and test files — excluded from the Plugin Directory ZIP
+
+.distignore
+.wp-env.json
+.gitignore
+composer.json
+composer.lock
+composer.phar
+package.json
+package-lock.json
+phpunit.xml.dist
+patchwork.json
+
+node_modules/
+vendor/
+tests/
