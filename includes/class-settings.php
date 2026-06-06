@@ -246,10 +246,11 @@ class DocRenders_Settings {
 			return;
 		}
 
-		$used      = (int) ( $usage['renders_used'] ?? 0 );
-		$limit     = (int) ( $usage['renders_limit'] ?? 0 );
+		$used      = (int) ( $usage['renders']['used'] ?? 0 );
+		$limit     = (int) ( $usage['renders']['limit'] ?? 0 );
 		$plan      = ucfirst( $usage['plan'] ?? 'free' );
-		$resets    = isset( $usage['period_end'] ) ? date_i18n( get_option( 'date_format' ), strtotime( $usage['period_end'] ) ) : '—';
+		$period    = $usage['renders']['period'] ?? ''; // "2026-06"
+		$resets    = $period ? date_i18n( get_option( 'date_format' ), strtotime( $period . '-01 +1 month -1 day' ) ) : '—';
 		$pct       = $limit > 0 ? min( 100, round( $used / $limit * 100 ) ) : 0;
 		$bar_class = $pct >= 95 ? 'docrenders-bar--red' : ( $pct >= 80 ? 'docrenders-bar--amber' : '' );
 		?>
