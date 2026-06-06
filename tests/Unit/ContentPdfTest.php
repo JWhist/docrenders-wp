@@ -15,6 +15,9 @@ class ContentPdfTest extends TestCase {
 
 		Functions\when( 'wp_print_font_faces' )->justReturn( null );
 		Functions\when( 'wp_get_global_stylesheet' )->justReturn( '' );
+		Functions\when( 'home_url' )->justReturn( 'http://example.com' );
+		Functions\when( 'content_url' )->justReturn( 'http://example.com/wp-content' );
+		Functions\when( 'trailingslashit' )->alias( fn( $s ) => rtrim( $s, '/' ) . '/' );
 
 		$this->client = $this->createMock( DocRenders_API_Client::class );
 		$this->pdf    = new DocRenders_Content_PDF( $this->client );

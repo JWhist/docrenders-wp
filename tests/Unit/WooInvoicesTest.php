@@ -15,7 +15,6 @@ class WooInvoicesTest extends TestCase {
 
 		Functions\when( 'is_wp_error' )->alias( fn( $v ) => $v instanceof WP_Error );
 		Functions\when( 'get_option' )->justReturn( '' );
-		Functions\when( 'update_option' )->justReturn( true );
 		Functions\when( 'get_bloginfo' )->justReturn( 'Test Store' );
 		Functions\when( 'date_i18n' )->justReturn( 'June 6, 2026' );
 		Functions\when( 'error_log' )->justReturn( null );
@@ -241,6 +240,7 @@ class WooInvoicesTest extends TestCase {
 
 	public function test_generate_pdf_returns_pdf_bytes_on_success(): void {
 		Functions\when( 'add_option' )->justReturn( true );
+		Functions\when( 'update_option' )->justReturn( true );
 
 		$order = $this->make_order_with_invoice_number( '1001' );
 
@@ -373,6 +373,7 @@ class WooInvoicesTest extends TestCase {
 
 	public function test_attach_to_email_returns_unchanged_attachments_on_pdf_error(): void {
 		Functions\when( 'add_option' )->justReturn( true );
+		Functions\when( 'update_option' )->justReturn( true );
 		Functions\when( 'get_option' )
 			->alias( fn( $key, $default = null ) => match ( $key ) {
 				'docrenders_woo_trigger'     => 'on_complete',
@@ -458,12 +459,21 @@ class WooInvoicesTest extends TestCase {
 	}
 
 	private function make_wpdb_mock( int $rows_affected, string $counter_value ): object {
-		$wpdb                 = new stdClass();
-		$wpdb->options        = 'wp_options';
-		$wpdb->rows_affected  = $rows_affected;
-		$wpdb->query          = fn( $sql ) => $rows_affected;
-		$wpdb->prepare        = fn( $sql, ...$args ) => vsprintf( str_replace( '%s', "'%s'", $sql ), $args );
-		$wpdb->get_var        = fn( $sql ) => $counter_value;
-		return $wpdb;
+		return new class( $rows_affected, $counter_value ) {
+			public string $options = 'wp_options';
+			public int $rows_affected;
+			private string $counter;
+
+			public function __construct( int $r, string $c ) {
+				$this->rows_affected = $r;
+				$this->counter       = $c;
+			}
+
+			public function query( string $sql ): int { return $this->rows_affected; }
+			public function prepare( string $sql, ...$args ): string {
+				return vsprintf( str_replace( '%s', "'%s'", $sql ), $args );
+			}
+			public function get_var( string $sql ): string { return $this->counter; }
+		};
 	}
 }
