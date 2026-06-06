@@ -358,6 +358,24 @@ class WooInvoicesTest extends TestCase {
 		$this->assertSame( [], $result );
 	}
 
+	public function test_attach_to_email_returns_unchanged_attachments_when_wp_tempnam_fails(): void {
+		Functions\when( 'add_option' )->justReturn( true );
+		Functions\when( 'update_option' )->justReturn( true );
+		Functions\when( 'get_option' )
+			->alias( fn( $key, $default = null ) => 'docrenders_woo_trigger' === $key ? 'on_complete' : ( $default ?? '' ) );
+		Functions\when( 'wp_tempnam' )->justReturn( false );
+
+		global $wpdb;
+		$wpdb = $this->make_wpdb_mock( 1, '1' );
+
+		$order = $this->make_order_with_invoice_number( '600' );
+		$this->client->method( 'render_template' )->willReturn( '%PDF-ok' );
+
+		$result = $this->woo->attach_to_email( [ 'prev.pdf' ], 'customer_completed_order', $order );
+
+		$this->assertSame( [ 'prev.pdf' ], $result );
+	}
+
 	public function test_attach_to_email_returns_unchanged_attachments_on_pdf_error(): void {
 		Functions\when( 'add_option' )->justReturn( true );
 		Functions\when( 'update_option' )->justReturn( true );

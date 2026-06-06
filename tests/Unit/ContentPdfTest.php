@@ -196,6 +196,45 @@ class ContentPdfTest extends TestCase {
 		return $method->invoke( $this->pdf, $post );
 	}
 
+	private function call_inline_local_font_urls( string $css ): string {
+		$method = new ReflectionMethod( DocRenders_Content_PDF::class, 'inline_local_font_urls' );
+		$method->setAccessible( true );
+		return $method->invoke( $this->pdf, $css );
+	}
+
+	// -------------------------------------------------------------------------
+	// inline_local_font_urls (private — tested via ReflectionMethod)
+	// -------------------------------------------------------------------------
+
+	public function test_inline_local_font_urls_skips_non_local_font(): void {
+		$css    = "src: url('https://fonts.example.com/font.woff2')";
+		$result = $this->call_inline_local_font_urls( $css );
+		$this->assertSame( $css, $result );
+	}
+
+	public function test_inline_local_font_urls_rejects_path_traversal(): void {
+		// A URL that resolves to outside ABSPATH — the realpath check should reject it.
+		// We craft a font URL using the home URL prefix but with traversal segments.
+		$css    = "src: url('http://example.com/../../../etc/passwd.woff2')";
+		$result = $this->call_inline_local_font_urls( $css );
+		// The traversal must not be inlined — the original url() is returned unchanged.
+		$this->assertStringNotContainsString( 'data:font', $result );
+		$this->assertSame( $css, $result );
+	}
+
+	public function test_inline_local_font_urls_inlines_existing_local_font(): void {
+		// Write a tiny fake font file inside /tmp/wordpress (our ABSPATH in tests).
+		$fake_font = '/tmp/wordpress/wp-content/fake.woff2';
+		@mkdir( '/tmp/wordpress/wp-content', 0755, true );
+		file_put_contents( $fake_font, 'FAKEFONTDATA' );
+
+		$css    = "src: url('http://example.com/wp-content/fake.woff2')";
+		$result = $this->call_inline_local_font_urls( $css );
+		$this->assertStringContainsString( 'data:font/woff2;base64,', $result );
+
+		unlink( $fake_font );
+	}
+
 	public function test_build_html_includes_post_title(): void {
 		$post = new WP_Post( [ 'ID' => 1, 'post_title' => 'My Post', 'post_content' => 'Hello.' ] );
 

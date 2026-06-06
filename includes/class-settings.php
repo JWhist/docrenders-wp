@@ -134,7 +134,7 @@ class DocRenders_Settings {
 		return in_array( $value, $allowed, true ) ? $value : 'shortcode';
 	}
 
-	public function sanitize_post_types( $value ): array {
+	public function sanitize_post_types( mixed $value ): array {
 		if ( ! is_array( $value ) ) {
 			return [];
 		}
@@ -276,7 +276,7 @@ class DocRenders_Settings {
 	// WooCommerce sanitize callbacks
 	// -------------------------------------------------------------------------
 
-	public function sanitize_checkbox( $value ): string {
+	public function sanitize_checkbox( mixed $value ): string {
 		return $value ? '1' : '';
 	}
 
