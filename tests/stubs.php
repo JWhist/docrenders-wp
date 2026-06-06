@@ -96,6 +96,7 @@ if ( ! class_exists( 'WP_Post' ) ) {
 		public string $post_status  = 'publish';
 		public string $post_name    = '';
 		public string $post_type    = 'post';
+		public int    $post_author  = 0;
 
 		public function __construct( array $props = [] ) {
 			foreach ( $props as $key => $value ) {

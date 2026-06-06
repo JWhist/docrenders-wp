@@ -13,11 +13,6 @@ class ContentPdfTest extends TestCase {
 		parent::setUp();
 		Monkey\setUp();
 
-		Functions\when( 'wp_print_font_faces' )->justReturn( null );
-		Functions\when( 'wp_get_global_stylesheet' )->justReturn( '' );
-		Functions\when( 'home_url' )->justReturn( 'http://example.com' );
-		Functions\when( 'content_url' )->justReturn( 'http://example.com/wp-content' );
-		Functions\when( 'trailingslashit' )->alias( fn( $s ) => rtrim( $s, '/' ) . '/' );
 		Functions\when( 'esc_attr' )->alias( 'htmlspecialchars' );
 
 		$this->client = $this->createMock( DocRenders_API_Client::class );
@@ -109,7 +104,7 @@ class ContentPdfTest extends TestCase {
 		Functions\when( 'get_queried_object' )->justReturn( $post );
 		Functions\when( 'get_option' )
 			->alias( fn( $key, $default = null ) => match ( $key ) {
-				'docrenders_post_types' => [ 'post', 'page' ], // 'product' not in list
+				'docrenders_post_types' => [ 'post', 'page' ],
 				default                 => $default,
 			} );
 
@@ -187,169 +182,142 @@ class ContentPdfTest extends TestCase {
 	}
 
 	// -------------------------------------------------------------------------
-	// build_html (private — tested via ReflectionMethod)
+	// build_post_data
 	// -------------------------------------------------------------------------
 
-	private function call_build_html( WP_Post $post ): string {
-		$method = new ReflectionMethod( DocRenders_Content_PDF::class, 'build_html' );
+	private function call_build_post_data( WP_Post $post ): array {
+		$method = new ReflectionMethod( DocRenders_Content_PDF::class, 'build_post_data' );
 		$method->setAccessible( true );
 		return $method->invoke( $this->pdf, $post );
 	}
 
-	private function call_inline_local_font_urls( string $css ): string {
-		$method = new ReflectionMethod( DocRenders_Content_PDF::class, 'inline_local_font_urls' );
-		$method->setAccessible( true );
-		return $method->invoke( $this->pdf, $css );
-	}
-
-	// -------------------------------------------------------------------------
-	// inline_local_font_urls (private — tested via ReflectionMethod)
-	// -------------------------------------------------------------------------
-
-	public function test_inline_local_font_urls_skips_non_local_font(): void {
-		$css    = "src: url('https://fonts.example.com/font.woff2')";
-		$result = $this->call_inline_local_font_urls( $css );
-		$this->assertSame( $css, $result );
-	}
-
-	public function test_inline_local_font_urls_rejects_path_traversal(): void {
-		// A URL that resolves to outside ABSPATH — the realpath check should reject it.
-		// We craft a font URL using the home URL prefix but with traversal segments.
-		$css    = "src: url('http://example.com/../../../etc/passwd.woff2')";
-		$result = $this->call_inline_local_font_urls( $css );
-		// The traversal must not be inlined — the original url() is returned unchanged.
-		$this->assertStringNotContainsString( 'data:font', $result );
-		$this->assertSame( $css, $result );
-	}
-
-	public function test_inline_local_font_urls_inlines_existing_local_font(): void {
-		// Write a tiny fake font file inside /tmp/wordpress (our ABSPATH in tests).
-		$fake_font = '/tmp/wordpress/wp-content/fake.woff2';
-		@mkdir( '/tmp/wordpress/wp-content', 0755, true );
-		file_put_contents( $fake_font, 'FAKEFONTDATA' );
-
-		$css    = "src: url('http://example.com/wp-content/fake.woff2')";
-		$result = $this->call_inline_local_font_urls( $css );
-		$this->assertStringContainsString( 'data:font/woff2;base64,', $result );
-
-		unlink( $fake_font );
-	}
-
-	public function test_build_html_includes_post_title(): void {
-		$post = new WP_Post( [ 'ID' => 1, 'post_title' => 'My Post', 'post_content' => 'Hello.' ] );
+	public function test_build_post_data_includes_title_and_content(): void {
+		$post = new WP_Post( [ 'ID' => 1, 'post_content' => 'Raw.', 'post_author' => 1 ] );
 
 		Functions\when( 'get_the_title' )->justReturn( 'My Post' );
-		Functions\when( 'apply_filters' )->justReturn( 'Hello.' );
+		Functions\when( 'apply_filters' )->justReturn( '<p>Filtered.</p>' );
+		Functions\when( 'get_bloginfo' )->justReturn( 'My Site' );
+		Functions\when( 'get_the_date' )->justReturn( 'June 6, 2026' );
+		Functions\when( 'get_the_author_meta' )->justReturn( 'Jane Smith' );
+		Functions\when( 'get_permalink' )->justReturn( 'https://example.com/my-post/' );
+		Functions\when( 'get_the_post_thumbnail_url' )->justReturn( false );
 		Functions\when( 'get_option' )->justReturn( '' );
-		Functions\when( 'esc_html' )->alias( 'htmlspecialchars' );
 
-		$this->client->method( 'is_paid_plan' )->willReturn( true );
+		$data = $this->call_build_post_data( $post );
 
-		$html = $this->call_build_html( $post );
-
-		$this->assertStringContainsString( 'My Post</h1>', $html );
-		$this->assertStringContainsString( '<title>My Post</title>', $html );
+		$this->assertSame( 'My Post', $data['title'] );
+		$this->assertSame( '<p>Filtered.</p>', $data['content'] );
 	}
 
-	public function test_build_html_includes_post_content(): void {
-		$post = new WP_Post( [ 'ID' => 1, 'post_content' => 'Raw content.' ] );
-
-		Functions\when( 'get_the_title' )->justReturn( 'Title' );
-		Functions\when( 'apply_filters' )->justReturn( '<p>Filtered content.</p>' );
-		Functions\when( 'get_option' )->justReturn( '' );
-		Functions\when( 'esc_html' )->alias( 'htmlspecialchars' );
-
-		$this->client->method( 'is_paid_plan' )->willReturn( true );
-
-		$html = $this->call_build_html( $post );
-
-		$this->assertStringContainsString( '<p>Filtered content.</p>', $html );
-	}
-
-	public function test_build_html_content_runs_through_wp_filters(): void {
-		$post = new WP_Post( [ 'ID' => 1, 'post_content' => 'raw' ] );
+	public function test_build_post_data_includes_meta_fields(): void {
+		$post = new WP_Post( [ 'ID' => 5, 'post_content' => '', 'post_author' => 2 ] );
 
 		Functions\when( 'get_the_title' )->justReturn( 'T' );
+		Functions\when( 'apply_filters' )->justReturn( '' );
+		Functions\when( 'get_bloginfo' )->justReturn( 'Acme Blog' );
+		Functions\when( 'get_the_date' )->justReturn( 'January 1, 2026' );
+		Functions\when( 'get_the_author_meta' )->justReturn( 'John Doe' );
+		Functions\when( 'get_permalink' )->justReturn( 'https://example.com/t/' );
+		Functions\when( 'get_the_post_thumbnail_url' )->justReturn( false );
 		Functions\when( 'get_option' )->justReturn( '' );
-		Functions\when( 'esc_html' )->alias( 'htmlspecialchars' );
+
+		$data = $this->call_build_post_data( $post );
+
+		$this->assertSame( 'Acme Blog', $data['site_name'] );
+		$this->assertSame( 'January 1, 2026', $data['post_date'] );
+		$this->assertSame( 'John Doe', $data['author'] );
+		$this->assertSame( 'https://example.com/t/', $data['url'] );
+	}
+
+	public function test_build_post_data_includes_featured_image_when_present(): void {
+		$post = new WP_Post( [ 'ID' => 7, 'post_content' => '', 'post_author' => 1 ] );
+
+		Functions\when( 'get_the_title' )->justReturn( 'T' );
+		Functions\when( 'apply_filters' )->justReturn( '' );
+		Functions\when( 'get_bloginfo' )->justReturn( '' );
+		Functions\when( 'get_the_date' )->justReturn( '' );
+		Functions\when( 'get_the_author_meta' )->justReturn( '' );
+		Functions\when( 'get_permalink' )->justReturn( '' );
+		Functions\when( 'get_the_post_thumbnail_url' )->justReturn( 'https://example.com/image.jpg' );
+		Functions\when( 'get_option' )->justReturn( '' );
+
+		$data = $this->call_build_post_data( $post );
+
+		$this->assertSame( 'https://example.com/image.jpg', $data['featured_image'] );
+	}
+
+	public function test_build_post_data_omits_featured_image_when_absent(): void {
+		$post = new WP_Post( [ 'ID' => 8, 'post_content' => '', 'post_author' => 1 ] );
+
+		Functions\when( 'get_the_title' )->justReturn( 'T' );
+		Functions\when( 'apply_filters' )->justReturn( '' );
+		Functions\when( 'get_bloginfo' )->justReturn( '' );
+		Functions\when( 'get_the_date' )->justReturn( '' );
+		Functions\when( 'get_the_author_meta' )->justReturn( '' );
+		Functions\when( 'get_permalink' )->justReturn( '' );
+		Functions\when( 'get_the_post_thumbnail_url' )->justReturn( false );
+		Functions\when( 'get_option' )->justReturn( '' );
+
+		$data = $this->call_build_post_data( $post );
+
+		$this->assertArrayNotHasKey( 'featured_image', $data );
+	}
+
+	public function test_build_post_data_includes_custom_css_when_set(): void {
+		$post = new WP_Post( [ 'ID' => 9, 'post_content' => '', 'post_author' => 1 ] );
+
+		Functions\when( 'get_the_title' )->justReturn( 'T' );
+		Functions\when( 'apply_filters' )->justReturn( '' );
+		Functions\when( 'get_bloginfo' )->justReturn( '' );
+		Functions\when( 'get_the_date' )->justReturn( '' );
+		Functions\when( 'get_the_author_meta' )->justReturn( '' );
+		Functions\when( 'get_permalink' )->justReturn( '' );
+		Functions\when( 'get_the_post_thumbnail_url' )->justReturn( false );
+		Functions\when( 'get_option' )->alias( fn( $key, $default = null ) => match ( $key ) {
+			'docrenders_custom_css' => 'body { font-size: 14pt; }',
+			default                 => $default ?? '',
+		} );
+
+		$data = $this->call_build_post_data( $post );
+
+		$this->assertSame( 'body { font-size: 14pt; }', $data['custom_css'] );
+	}
+
+	public function test_build_post_data_omits_custom_css_when_empty(): void {
+		$post = new WP_Post( [ 'ID' => 10, 'post_content' => '', 'post_author' => 1 ] );
+
+		Functions\when( 'get_the_title' )->justReturn( 'T' );
+		Functions\when( 'apply_filters' )->justReturn( '' );
+		Functions\when( 'get_bloginfo' )->justReturn( '' );
+		Functions\when( 'get_the_date' )->justReturn( '' );
+		Functions\when( 'get_the_author_meta' )->justReturn( '' );
+		Functions\when( 'get_permalink' )->justReturn( '' );
+		Functions\when( 'get_the_post_thumbnail_url' )->justReturn( false );
+		Functions\when( 'get_option' )->justReturn( '' );
+
+		$data = $this->call_build_post_data( $post );
+
+		$this->assertArrayNotHasKey( 'custom_css', $data );
+	}
+
+	public function test_build_post_data_content_runs_through_wp_filters(): void {
+		$post = new WP_Post( [ 'ID' => 11, 'post_content' => 'raw', 'post_author' => 1 ] );
+
+		Functions\when( 'get_the_title' )->justReturn( 'T' );
+		Functions\when( 'get_bloginfo' )->justReturn( '' );
+		Functions\when( 'get_the_date' )->justReturn( '' );
+		Functions\when( 'get_the_author_meta' )->justReturn( '' );
+		Functions\when( 'get_permalink' )->justReturn( '' );
+		Functions\when( 'get_the_post_thumbnail_url' )->justReturn( false );
+		Functions\when( 'get_option' )->justReturn( '' );
 		Functions\expect( 'apply_filters' )
 			->once()
 			->with( 'the_content', 'raw' )
 			->andReturn( '<p>processed</p>' );
 
-		$this->client->method( 'is_paid_plan' )->willReturn( true );
+		$data = $this->call_build_post_data( $post );
 
-		$html = $this->call_build_html( $post );
-
-		$this->assertStringContainsString( '<p>processed</p>', $html );
-	}
-
-	public function test_build_html_injects_branding_footer_on_free_plan(): void {
-		$post = new WP_Post( [ 'ID' => 1, 'post_content' => '' ] );
-
-		Functions\when( 'get_the_title' )->justReturn( 'T' );
-		Functions\when( 'apply_filters' )->justReturn( '' );
-		Functions\when( 'get_option' )->justReturn( '' );
-		Functions\when( 'esc_html' )->alias( 'htmlspecialchars' );
-
-		$this->client->method( 'is_paid_plan' )->willReturn( false );
-
-		$html = $this->call_build_html( $post );
-
-		$this->assertStringContainsString( 'docrenders.com', $html );
-		$this->assertStringContainsString( 'position:fixed', $html );
-	}
-
-	public function test_build_html_omits_branding_footer_on_paid_plan(): void {
-		$post = new WP_Post( [ 'ID' => 1, 'post_content' => '' ] );
-
-		Functions\when( 'get_the_title' )->justReturn( 'T' );
-		Functions\when( 'apply_filters' )->justReturn( '' );
-		Functions\when( 'get_option' )->justReturn( '' );
-		Functions\when( 'esc_html' )->alias( 'htmlspecialchars' );
-
-		$this->client->method( 'is_paid_plan' )->willReturn( true );
-
-		$html = $this->call_build_html( $post );
-
-		$this->assertStringNotContainsString( 'PDF generated by', $html );
-	}
-
-	public function test_build_html_includes_custom_css(): void {
-		$post = new WP_Post( [ 'ID' => 1, 'post_content' => '' ] );
-
-		Functions\when( 'get_the_title' )->justReturn( 'T' );
-		Functions\when( 'apply_filters' )->justReturn( '' );
-		Functions\when( 'get_option' )->alias( fn( $key, $default = null ) => match ( $key ) {
-			'docrenders_custom_css' => 'body { font-size: 14pt; }',
-			default                 => $default ?? '',
-		} );
-		Functions\when( 'esc_html' )->alias( 'htmlspecialchars' );
-
-		$this->client->method( 'is_paid_plan' )->willReturn( true );
-
-		$html = $this->call_build_html( $post );
-
-		$this->assertStringContainsString( 'body { font-size: 14pt; }', $html );
-	}
-
-	public function test_build_html_is_valid_html_document(): void {
-		$post = new WP_Post( [ 'ID' => 1, 'post_content' => 'Hello.' ] );
-
-		Functions\when( 'get_the_title' )->justReturn( 'Test' );
-		Functions\when( 'apply_filters' )->justReturn( '<p>Hello.</p>' );
-		Functions\when( 'get_option' )->justReturn( '' );
-		Functions\when( 'esc_html' )->alias( 'htmlspecialchars' );
-
-		$this->client->method( 'is_paid_plan' )->willReturn( true );
-
-		$html = $this->call_build_html( $post );
-
-		$this->assertStringContainsString( '<!DOCTYPE html>', $html );
-		$this->assertStringContainsString( '<html>', $html );
-		$this->assertStringContainsString( '<head>', $html );
-		$this->assertStringContainsString( '<body ', $html );
-		$this->assertStringContainsString( '</body></html>', $html );
+		$this->assertSame( '<p>processed</p>', $data['content'] );
 	}
 
 	// -------------------------------------------------------------------------
