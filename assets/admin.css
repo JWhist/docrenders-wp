@@ -1,0 +1,66 @@
+.docrenders-usage-panel {
+	background: #fff;
+	border: 1px solid #dcdcde;
+	border-radius: 4px;
+	padding: 16px 20px;
+	margin: 16px 0 24px;
+	max-width: 600px;
+}
+
+.docrenders-usage-title {
+	margin: 0 0 12px;
+	font-size: 13px;
+	font-weight: 600;
+	color: #1d2327;
+}
+
+.docrenders-usage-row {
+	display: flex;
+	align-items: center;
+	gap: 12px;
+	margin-bottom: 10px;
+}
+
+.docrenders-usage-label {
+	flex: 0 0 90px;
+	font-size: 13px;
+	color: #50575e;
+}
+
+.docrenders-bar-wrap {
+	flex: 1;
+	height: 8px;
+	background: #f0f0f1;
+	border-radius: 4px;
+	overflow: hidden;
+}
+
+.docrenders-bar {
+	height: 100%;
+	background: #2271b1;
+	border-radius: 4px;
+	transition: width 0.3s ease;
+}
+
+.docrenders-bar--amber { background: #dba617; }
+.docrenders-bar--red   { background: #b91c1c; }
+
+.docrenders-usage-count {
+	flex: 0 0 80px;
+	text-align: right;
+	font-size: 13px;
+	color: #1d2327;
+	font-variant-numeric: tabular-nums;
+}
+
+.docrenders-usage-meta {
+	display: flex;
+	gap: 20px;
+	font-size: 12px;
+	color: #50575e;
+}
+
+.docrenders-usage-meta a {
+	margin-left: auto;
+	text-decoration: none;
+}
