@@ -61,7 +61,7 @@ class DocRenders_Content_PDF {
 		$nonce = wp_create_nonce( 'docrenders_render_' . $post_id );
 
 		return sprintf(
-			'<div class="docrenders-pdf-wrap"><button class="docrenders-pdf-btn wp-element-button" data-post-id="%d" data-nonce="%s">%s</button><span class="docrenders-pdf-msg" aria-live="polite"></span></div>',
+			'<div class="docrenders-pdf-wrap"><button class="docrenders-pdf-btn" data-post-id="%d" data-nonce="%s">%s</button><span class="docrenders-pdf-msg" aria-live="polite"></span></div>',
 			$post_id,
 			esc_attr( $nonce ),
 			esc_html( $label )

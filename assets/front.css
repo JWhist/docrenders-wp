@@ -1,12 +1,8 @@
-/* Fallback styling for themes that don't define wp-element-button. */
 .docrenders-pdf-wrap {
     margin: 1.5em 0;
 }
 
-/* Only apply our fallback if the theme hasn't provided button colours.
-   Block themes set --wp--preset--color--* variables; classic themes often
-   don't, so this simple check is enough to avoid double-styling. */
-.docrenders-pdf-btn:not([style]) {
+.docrenders-pdf-btn {
     display: inline-flex;
     align-items: center;
     gap: .4em;
@@ -23,11 +19,12 @@
     transition: background .15s;
 }
 
-.docrenders-pdf-btn:not([style]):hover {
+.docrenders-pdf-btn:hover {
     background: #135e96;
+    color: #fff;
 }
 
-.docrenders-pdf-btn:not([style]):disabled {
+.docrenders-pdf-btn:disabled {
     opacity: .6;
     cursor: wait;
 }
