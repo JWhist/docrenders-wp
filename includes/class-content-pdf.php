@@ -135,6 +135,7 @@ class DocRenders_Content_PDF {
 		$title      = get_the_title( $post );
 		$content    = apply_filters( 'the_content', $post->post_content );
 		$print_css  = $this->load_print_css();
+		$theme_css  = $this->load_theme_css();
 		$custom_css = get_option( 'docrenders_custom_css', '' );
 		$footer     = $this->client->is_paid_plan() ? '' : $this->branding_footer();
 
@@ -142,13 +143,33 @@ class DocRenders_Content_PDF {
 			. '<html><head>'
 			. '<meta charset="UTF-8">'
 			. '<title>' . esc_html( $title ) . '</title>'
+			. ( $theme_css ? '<style>' . $theme_css . '</style>' : '' )
 			. '<style>' . $print_css . '</style>'
 			. ( $custom_css ? '<style>' . $custom_css . '</style>' : '' )
-			. '</head><body>'
-			. '<h1>' . esc_html( $title ) . '</h1>'
-			. $content
+			. '</head><body class="single-' . esc_attr( $post->post_type ) . '">'
+			. '<article class="post entry">'
+			. '<header class="entry-header"><h1 class="entry-title">' . esc_html( $title ) . '</h1></header>'
+			. '<div class="entry-content">' . $content . '</div>'
+			. '</article>'
 			. $footer
 			. '</body></html>';
+	}
+
+	private function load_theme_css(): string {
+		// Block themes expose a generated stylesheet from theme.json covering
+		// fonts, colours, and typography — exactly what we want for the PDF.
+		if ( function_exists( 'wp_get_global_stylesheet' ) ) {
+			return wp_get_global_stylesheet();
+		}
+		// Classic theme fallback: inline the registered main stylesheet.
+		$uri = get_stylesheet_uri();
+		if ( $uri ) {
+			$response = wp_remote_get( $uri, [ 'timeout' => 10 ] );
+			if ( ! is_wp_error( $response ) && 200 === wp_remote_retrieve_response_code( $response ) ) {
+				return wp_remote_retrieve_body( $response );
+			}
+		}
+		return '';
 	}
 
 	private function load_print_css(): string {
