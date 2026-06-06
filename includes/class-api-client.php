@@ -6,7 +6,7 @@ if ( ! defined( 'ABSPATH' ) ) {
 
 class DocRenders_API_Client {
 
-	const API_BASE        = 'https://api.docrenders.dev/v1';
+	const API_BASE        = 'https://www.docrenders.com';
 	const USAGE_CACHE_TTL = 300; // 5 minutes
 
 	private string $api_key;
