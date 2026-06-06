@@ -37,7 +37,7 @@ class DocRenders_Woo_Invoices {
 			return $attachments;
 		}
 
-		$tmp = wp_tempnam( 'docrenders-invoice' );
+		$tmp = wp_tempnam( 'docrenders-invoice' ) . '.pdf';
 		// phpcs:ignore WordPress.WP.AlternativeFunctions.file_system_read_file_put_contents
 		file_put_contents( $tmp, $pdf );
 		$attachments[] = $tmp;
