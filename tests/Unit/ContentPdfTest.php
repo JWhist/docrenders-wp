@@ -187,7 +187,6 @@ class ContentPdfTest extends TestCase {
 
 	private function call_build_post_data( WP_Post $post ): array {
 		$method = new ReflectionMethod( DocRenders_Content_PDF::class, 'build_post_data' );
-		$method->setAccessible( true );
 		return $method->invoke( $this->pdf, $post );
 	}
 
@@ -378,7 +377,6 @@ class ContentPdfTest extends TestCase {
 
 	private function call_user_facing_message( string $code, string $fallback ): string {
 		$method = new ReflectionMethod( DocRenders_Content_PDF::class, 'user_facing_message' );
-		$method->setAccessible( true );
 		return $method->invoke( $this->pdf, $code, $fallback );
 	}
 
