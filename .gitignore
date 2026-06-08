@@ -1,6 +1,8 @@
 vendor/
 composer.lock
+composer.phar
 .phpunit.cache/
+.phpunit.result.cache
 node_modules/
 .wp-env.override.json
 take-screenshots.mjs
