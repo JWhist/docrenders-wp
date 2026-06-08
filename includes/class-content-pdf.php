@@ -108,6 +108,10 @@ class DocRenders_Content_PDF {
 			wp_send_json_error( [ 'message' => 'Access denied.' ], 403 );
 		}
 
+		if ( post_password_required( $post ) ) {
+			wp_send_json_error( [ 'message' => 'Access denied.' ], 403 );
+		}
+
 		$data   = $this->build_post_data( $post );
 		$result = $this->client->render_template( 'post', $data );
 

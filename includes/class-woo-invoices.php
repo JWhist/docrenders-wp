@@ -15,6 +15,7 @@ class DocRenders_Woo_Invoices {
 	public function init(): void {
 		add_filter( 'woocommerce_email_attachments', [ $this, 'attach_to_email' ], 10, 3 );
 		add_action( 'admin_notices', [ $this, 'maybe_show_limit_notice' ] );
+		add_action( 'docrenders_retry_invoice', [ $this, 'retry_invoice' ] );
 	}
 
 	// -------------------------------------------------------------------------
@@ -37,16 +38,30 @@ class DocRenders_Woo_Invoices {
 			return $attachments;
 		}
 
-		$tmp = wp_tempnam( 'docrenders-invoice' );
-		if ( ! $tmp ) {
+		$base = wp_tempnam( 'docrenders-invoice' );
+		if ( ! $base ) {
 			return $attachments;
 		}
-		$tmp .= '.pdf';
+		// wp_tempnam() creates the base file to reserve the name; rename it to .pdf
+		// so only one file exists on disk and cleanup targets the right path.
+		$tmp = $base . '.pdf';
+		if ( ! rename( $base, $tmp ) ) {
+			unlink( $base );
+			return $attachments;
+		}
 		// phpcs:ignore WordPress.WP.AlternativeFunctions.file_system_read_file_put_contents
 		if ( false === file_put_contents( $tmp, $pdf ) ) {
+			unlink( $tmp );
 			return $attachments;
 		}
 		$attachments[] = $tmp;
+
+		// Delete the temp file after the email is sent.
+		add_action( 'woocommerce_email_sent', static function () use ( $tmp ) {
+			if ( file_exists( $tmp ) ) {
+				unlink( $tmp );
+			}
+		}, 10, 0 );
 
 		return $attachments;
 	}
@@ -92,43 +107,59 @@ class DocRenders_Woo_Invoices {
 		$data                   = $this->build_template_data( $order );
 		$data['invoice_number'] = $this->next_invoice_number();
 
-		$attempts = 0;
-		$delays   = [ 1, 2, 4 ];
+		$result = $this->client->render_template( 'woo-invoice', $data );
 
-		while ( true ) {
-			$result = $this->client->render_template( 'woo-invoice', $data );
-
-			if ( ! is_wp_error( $result ) ) {
-				$this->clear_failed_order( $order->get_id() );
-				update_option( 'docrenders_limit_reached', false );
-				return $result;
-			}
-
-			$code = $result->get_error_code();
-
-			if ( 'quota_exceeded' === $code ) {
-				update_option( 'docrenders_limit_reached', true );
-				$this->store_failed_order( $order->get_id() );
-				// phpcs:ignore WordPress.PHP.DevelopmentFunctions.error_log_error_log
-				error_log( sprintf( '[DocRenders] Invoice for order #%s failed: plan limit reached.', $order->get_order_number() ) );
-				return $result;
-			}
-
-			if ( 'rate_limited' === $code && $attempts < count( $delays ) ) {
-				sleep( $delays[ $attempts ] ); // phpcs:ignore WordPress.WP.AlternativeFunctions.rand_sleep
-				$attempts++;
-				continue;
-			}
-
-			$this->store_failed_order( $order->get_id() );
-			// phpcs:ignore WordPress.PHP.DevelopmentFunctions.error_log_error_log
-			error_log( sprintf(
-				'[DocRenders] Invoice for order #%s failed: %s',
-				$order->get_order_number(),
-				$result->get_error_message()
-			) );
+		if ( ! is_wp_error( $result ) ) {
+			$this->clear_failed_order( $order->get_id() );
+			update_option( 'docrenders_limit_reached', false );
 			return $result;
 		}
+
+		$code = $result->get_error_code();
+
+		if ( 'quota_exceeded' === $code ) {
+			update_option( 'docrenders_limit_reached', true );
+			$this->store_failed_order( $order->get_id() );
+			// phpcs:ignore WordPress.PHP.DevelopmentFunctions.error_log_error_log
+			error_log( sprintf( '[DocRenders] Invoice for order #%s failed: plan limit reached.', $order->get_order_number() ) );
+			return $result;
+		}
+
+		if ( 'rate_limited' === $code ) {
+			// Schedule a retry via WP-Cron rather than blocking with sleep().
+			wp_schedule_single_event( time() + 60, 'docrenders_retry_invoice', [ $order->get_id() ] );
+			// phpcs:ignore WordPress.PHP.DevelopmentFunctions.error_log_error_log
+			error_log( sprintf( '[DocRenders] Invoice for order #%s rate-limited; retry scheduled.', $order->get_order_number() ) );
+			return $result;
+		}
+
+		$this->store_failed_order( $order->get_id() );
+		// phpcs:ignore WordPress.PHP.DevelopmentFunctions.error_log_error_log
+		error_log( sprintf(
+			'[DocRenders] Invoice for order #%s failed: %s',
+			$order->get_order_number(),
+			$result->get_error_message()
+		) );
+		return $result;
+	}
+
+	// -------------------------------------------------------------------------
+	// Cron retry (rate-limited invoices)
+	// -------------------------------------------------------------------------
+
+	public function retry_invoice( int $order_id ): void {
+		$order = wc_get_order( $order_id );
+		if ( ! $order instanceof WC_Order ) {
+			return;
+		}
+
+		$pdf = $this->generate_pdf( $order );
+		if ( is_wp_error( $pdf ) ) {
+			return;
+		}
+
+		// Re-send the completed order email with the PDF attached.
+		WC()->mailer()->emails['WC_Email_Customer_Completed_Order']->trigger( $order_id );
 	}
 
 	// -------------------------------------------------------------------------

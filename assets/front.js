@@ -42,7 +42,7 @@
 			document.body.appendChild(a);
 			a.click();
 			document.body.removeChild(a);
-			setTimeout(function () { URL.revokeObjectURL(url); }, 60000);
+			URL.revokeObjectURL(url);
 		})
 		.catch(function (err) {
 			if (msg) {
