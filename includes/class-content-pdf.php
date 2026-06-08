@@ -62,6 +62,12 @@ class DocRenders_Content_PDF {
 			return $content;
 		}
 
+		// Don't inject a second button if the post already has a shortcode or block.
+		if ( has_shortcode( $post->post_content, 'docrenders_pdf' ) ||
+			has_block( 'docrenders/pdf-button', $post ) ) {
+			return $content;
+		}
+
 		$button = $this->render_button( $post->ID );
 
 		return 'before_content' === $placement ? $button . $content : $content . $button;
