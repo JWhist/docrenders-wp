@@ -1,7 +1,6 @@
 <?php
 /**
  * Plugin Name: DocRenders – PDF Download Button
- * Plugin URI:  https://docrenders.com
  * Description: Add a "Download PDF" button to any post or page, powered by the DocRenders API.
  * Version:     1.0.1
  * Author:      DocRenders
