@@ -42,25 +42,19 @@ class DocRenders_Woo_Invoices {
 		if ( ! $base ) {
 			return $attachments;
 		}
-		// wp_tempnam() creates the base file to reserve the name; rename it to .pdf
-		// so only one file exists on disk and cleanup targets the right path.
+		// wp_tempnam() creates the base file to reserve the name; delete it and
+		// write directly to the .pdf path so only one file ever exists on disk.
+		wp_delete_file( $base );
 		$tmp = $base . '.pdf';
-		if ( ! rename( $base, $tmp ) ) {
-			unlink( $base );
-			return $attachments;
-		}
 		// phpcs:ignore WordPress.WP.AlternativeFunctions.file_system_read_file_put_contents
 		if ( false === file_put_contents( $tmp, $pdf ) ) {
-			unlink( $tmp );
 			return $attachments;
 		}
 		$attachments[] = $tmp;
 
 		// Delete the temp file after the email is sent.
 		add_action( 'woocommerce_email_sent', static function () use ( $tmp ) {
-			if ( file_exists( $tmp ) ) {
-				unlink( $tmp );
-			}
+			wp_delete_file( $tmp );
 		}, 10, 0 );
 
 		return $attachments;
@@ -92,7 +86,7 @@ class DocRenders_Woo_Invoices {
 						'docrenders'
 					)
 				),
-				$count
+				absint( $count )
 			),
 			esc_url( 'https://docrenders.com/pricing' ),
 			esc_html__( 'Upgrade plan', 'docrenders' )
@@ -260,7 +254,8 @@ class DocRenders_Woo_Invoices {
 	public function next_invoice_number(): string {
 		global $wpdb;
 
-		// Atomic SQL increment prevents duplicate numbers under concurrent order completions.
+		// Direct SQL is intentional: WP options API has no atomic increment.
+		// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching
 		$updated = $wpdb->query( $wpdb->prepare(
 			"UPDATE {$wpdb->options} SET option_value = option_value + 1 WHERE option_name = %s",
 			'docrenders_invoice_counter'
@@ -270,6 +265,7 @@ class DocRenders_Woo_Invoices {
 			add_option( 'docrenders_invoice_counter', 1, '', 'no' );
 		}
 
+		// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching
 		$counter = (int) $wpdb->get_var( $wpdb->prepare(
 			"SELECT option_value FROM {$wpdb->options} WHERE option_name = %s",
 			'docrenders_invoice_counter'

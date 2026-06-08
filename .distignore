@@ -1,8 +1,11 @@
 # Development and test files — excluded from the Plugin Directory ZIP
 
 .distignore
-.wp-env.json
 .gitignore
+.wp-env.json
+.wp-env.override.json
+.phpunit.result.cache
+.github/
 composer.json
 composer.lock
 composer.phar

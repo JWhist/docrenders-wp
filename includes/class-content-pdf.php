@@ -140,7 +140,8 @@ class DocRenders_Content_PDF {
 	public function build_post_data( WP_Post $post ): array {
 		$data = [
 			'title'      => get_the_title( $post ),
-			'content'    => apply_filters( 'the_content', $post->post_content ),
+			// phpcs:ignore WordPress.NamingConventions.PrefixAllGlobals.NonPrefixedHooknameFound -- calling core filter, not registering it
+		'content'    => apply_filters( 'the_content', $post->post_content ),
 			'site_name'  => get_bloginfo( 'name' ),
 			'post_date'  => get_the_date( get_option( 'date_format' ), $post ),
 			'author'     => get_the_author_meta( 'display_name', $post->post_author ),
