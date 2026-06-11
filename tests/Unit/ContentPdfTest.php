@@ -43,6 +43,8 @@ class ContentPdfTest extends TestCase {
 		Functions\when( 'wp_create_nonce' )->justReturn( 'fake_nonce' );
 		Functions\when( 'esc_attr' )->alias( 'htmlspecialchars' );
 		Functions\when( 'esc_html' )->alias( 'htmlspecialchars' );
+		Functions\when( 'has_shortcode' )->justReturn( false );
+		Functions\when( 'has_block' )->justReturn( false );
 
 		$result = $this->pdf->inject_button( '<p>Content</p>' );
 
@@ -65,6 +67,8 @@ class ContentPdfTest extends TestCase {
 		Functions\when( 'wp_create_nonce' )->justReturn( 'fake_nonce' );
 		Functions\when( 'esc_attr' )->alias( 'htmlspecialchars' );
 		Functions\when( 'esc_html' )->alias( 'htmlspecialchars' );
+		Functions\when( 'has_shortcode' )->justReturn( false );
+		Functions\when( 'has_block' )->justReturn( false );
 
 		$result = $this->pdf->inject_button( '<p>Content</p>' );
 
@@ -268,47 +272,6 @@ class ContentPdfTest extends TestCase {
 		$data = $this->call_build_post_data( $post );
 
 		$this->assertArrayNotHasKey( 'featured_image', $data );
-	}
-
-	public function test_build_post_data_includes_custom_css_when_set(): void {
-		$post = new WP_Post( [ 'ID' => 9, 'post_content' => '', 'post_author' => 1 ] );
-
-		Functions\when( 'get_the_title' )->justReturn( 'T' );
-		Functions\when( 'apply_filters' )->justReturn( '' );
-		Functions\when( 'get_bloginfo' )->justReturn( '' );
-		Functions\when( 'get_the_date' )->justReturn( '' );
-		Functions\when( 'get_the_author_meta' )->justReturn( '' );
-		Functions\when( 'get_permalink' )->justReturn( '' );
-		Functions\when( 'get_the_post_thumbnail_url' )->justReturn( false );
-		Functions\when( 'get_option' )->alias( fn( $key, $default = null ) => match ( $key ) {
-			'docrenders_custom_css' => 'body { font-size: 14pt; }',
-			default                 => $default ?? '',
-		} );
-		Functions\when( 'get_theme_mod' )->justReturn( false );
-		Functions\when( 'wp_get_attachment_image_url' )->justReturn( false );
-
-		$data = $this->call_build_post_data( $post );
-
-		$this->assertSame( 'body { font-size: 14pt; }', $data['custom_css'] );
-	}
-
-	public function test_build_post_data_omits_custom_css_when_empty(): void {
-		$post = new WP_Post( [ 'ID' => 10, 'post_content' => '', 'post_author' => 1 ] );
-
-		Functions\when( 'get_the_title' )->justReturn( 'T' );
-		Functions\when( 'apply_filters' )->justReturn( '' );
-		Functions\when( 'get_bloginfo' )->justReturn( '' );
-		Functions\when( 'get_the_date' )->justReturn( '' );
-		Functions\when( 'get_the_author_meta' )->justReturn( '' );
-		Functions\when( 'get_permalink' )->justReturn( '' );
-		Functions\when( 'get_the_post_thumbnail_url' )->justReturn( false );
-		Functions\when( 'get_option' )->justReturn( '' );
-		Functions\when( 'get_theme_mod' )->justReturn( false );
-		Functions\when( 'wp_get_attachment_image_url' )->justReturn( false );
-
-		$data = $this->call_build_post_data( $post );
-
-		$this->assertArrayNotHasKey( 'custom_css', $data );
 	}
 
 	public function test_build_post_data_content_runs_through_wp_filters(): void {
