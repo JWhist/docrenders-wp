@@ -49,19 +49,12 @@ class DocRenders_Settings {
 			'default'           => [ 'post', 'page' ],
 		] );
 
-		register_setting( 'docrenders', 'docrenders_custom_css', [
-			'type'              => 'string',
-			'sanitize_callback' => 'wp_strip_all_tags',
-			'default'           => '',
-		] );
-
 		add_settings_section( 'docrenders_main', '', '__return_false', 'docrenders' );
 
 		add_settings_field( 'docrenders_api_key', 'API Key', [ $this, 'field_api_key' ], 'docrenders', 'docrenders_main' );
 		add_settings_field( 'docrenders_button_label', 'Button Label', [ $this, 'field_button_label' ], 'docrenders', 'docrenders_main' );
 		add_settings_field( 'docrenders_button_placement', 'Button Placement', [ $this, 'field_button_placement' ], 'docrenders', 'docrenders_main' );
 		add_settings_field( 'docrenders_post_types', 'Enabled Post Types', [ $this, 'field_post_types' ], 'docrenders', 'docrenders_main' );
-		add_settings_field( 'docrenders_custom_css', 'Custom CSS', [ $this, 'field_custom_css' ], 'docrenders', 'docrenders_main' );
 
 		if ( class_exists( 'WooCommerce' ) ) {
 			$this->register_woo_settings();
@@ -191,15 +184,6 @@ class DocRenders_Settings {
 				esc_html( $type->labels->name )
 			);
 		}
-	}
-
-	public function field_custom_css(): void {
-		$value = get_option( 'docrenders_custom_css', '' );
-		printf(
-			'<textarea id="docrenders_custom_css" name="docrenders_custom_css" rows="8" class="large-text code">%s</textarea>
-			<p class="description">CSS appended to every post/page PDF. Useful for custom fonts, colours, or spacing.</p>',
-			esc_textarea( $value )
-		);
 	}
 
 	// -------------------------------------------------------------------------

@@ -167,11 +167,6 @@ class DocRenders_Content_PDF {
 			}
 		}
 
-		$custom_css = get_option( 'docrenders_custom_css', '' );
-		if ( $custom_css ) {
-			$data['custom_css'] = $custom_css;
-		}
-
 		return $data;
 	}
 
