@@ -1,5 +1,5 @@
 === DocRenders – PDF Download Button ===
-Contributors: docrenders, jwhist
+Contributors: jwhist
 Tags: pdf, download, print, woocommerce, invoice
 Requires at least: 6.2
 Tested up to: 7.0
